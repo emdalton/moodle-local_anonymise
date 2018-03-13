@@ -44,7 +44,7 @@ if (!debugging() || empty($CFG->maintenance_enabled)) {
     $debugging = new moodle_url('/admin/settings.php', array('section' => 'debugging'));
     $maintenance = new moodle_url('/admin/settings.php', array('section' => 'maintenancemode'));
     $langparams = (object)array('debugging' => $debugging->out(false), 'maintenance' => $maintenance->out(false));
-    echo $OUTPUT->notification(get_string('nodebuggingmaintenancemode', 'local_anonymise', $langparams));
+    echo $OUTPUT->notification(get_string('nodebuggingmaintenancemode', 'local_pseudonymise', $langparams));
     echo $OUTPUT->footer();
     die();
 }
