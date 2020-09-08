@@ -656,7 +656,7 @@ function pseudonymise_table_records($tablename, $columns) {
             $len = \core_text::strlen($record->{$columnname});
             if ($len) {
                 $updaterecord = true;
-                $record->{$columnname} = assign_random_string($len);
+                $record->{$columnname} = assign_serial_pseudo_string($len);
             }
         }
         if ($updaterecord) {
@@ -918,6 +918,251 @@ $fruitcount = count($fruitlist);
      //print $countserialpseudoids;
     return $id;
 }
+
+function assign_serial_pseudo_string($len) {
+    // rather than just assigning a random string of junk,
+    // this algorithm assembles a phrase string consisting of serialized sentences in base 26
+    // accept a length parameter to determine how long the paragraph needs to be for uniqueness (or possibly, look at length of original?)
+    // 1 phrase: alpha1 26 possibilities
+    // 2 phrases: alpha2  + alpha1 26*26 = 676
+    // 3 phrases: alpha 3 + alpha2 + alpha1  26*676 = 17,576
+    // 4 phrases: alpha4 + alpha 3 + alpha2 + alpha1 26*17576 = 456,976
+    // 5 phrases: alpha5 + alpha4 + alpha 3 + alpha2 + alpha1  26*456976 = 11,881,376
+    // 6 phrases: alpha6 + alpha5 + alpha4 + alpha 3 + alpha2 + alpha1 26*11881376 = 308,915,776
+    // if > 6, add a number at the end of the string containing modulus
+    // Keep track of used IDs during the running of the script.
+    static $usedserialpseudoids = array();
+    static $countserialpseudoids = 0;
+    
+    $alpha1 = explode("|", 
+"A was an ape, who stole some white tape, and tied up his toes in four beautiful bows.|
+B was a bat, who slept all the day, and fluttered about when the sun went away.|
+C was a camel: you rode on his hump; and if you fell off, you came down such a bump!|
+D was a dove, who lived in a wood, with such pretty soft wings, and so gentle and good!|
+E was an eagle, who sat on the rocks, and looked down on the fields and the-far-away flocks.|
+F was a fan made of beautiful stuff; and when it was used, it went puffy-puff-puff!|
+G was a gooseberry, perfectly red; to be made into jam, and eaten with bread.|
+H was a heron, who stood in a stream: the length of his neck and his legs was extreme.|
+I was an inkstand, which stood on a table, with a nice pen to write with when we are able.|
+J was a jug, so pretty and white, with fresh water in it at morning and night.|
+K was a kingfisher: quickly he flew, so bright and so pretty!— green, purple, and blue.|
+L was a lily, so white and so sweet! To see it and smell it was quite a nice treat.|
+M was a man, who walked round and round; and he wore a long coat that came down to the ground.|
+N was a nut so smooth and so brown! And when it was ripe, it fell tumble-dum-down.|
+O was an oyster, who lived in his shell: if you let him alone, he felt perfectly well.|
+P was a polly, all red, blue, and green,— the most beautiful polly that ever was seen.|
+Q was a quill made into a pen; but I do not know where, and I cannot say when.|
+R was a rattlesnake, rolled up so tight, those who saw him ran quickly, for fear he should bite.|
+S was a screw to screw down a box; and then it was fastened without any locks.|
+T was a thimble, of silver so bright! When placed on the finger, it fitted so tight!|
+U was an upper-coat, woolly and warm, to wear over all In the snow or the storm.|
+V was a veil with a border upon it, and a ribbon to tie it all round a pink bonnet.|
+W was a watch, where, in letters of gold, the hour of the day you might always behold.|
+X was King Xerxes, who wore on his head a mighty large turban, green, yellow, and red.|
+Y was a yak, from the land of Thibet: except his white tail, he was all black as jet.|
+Z was a zebra, all striped white and black; and if he were tame, you might ride on his back.");
+
+$alpha2 = explode("|", "A was an ant who seldom stood still, and who made a nice house In the side of a hill.|
+B was a book with a binding of blue, and pictures and stories for me and for you.|
+C was a cat who ran after a rat; but his courage did fail when she seized on his tail.|
+D was a duck with spots on his back, who lived in the water, and always said 'Quack'!|
+E was an elephant, stately and wise: he had tusks and a trunk, and two queer little eyes.|
+F was a fish who was caught in a net; but he got out again, and is quite alive yet.|
+G was a goat who was spotted with brown: when he did not lie still he walked up and down.|
+H was a hat which was all on one side; its crown was too high, and its brim was too wide.|
+I was some ice ao white and so nice, but which nobody tasted; and so it was wasted.|
+J was a jackdaw who hopped up and down in the principal street of a neighboring town.|
+K was a kite which flew out of sight, above houses so high, quite into the sky.|
+L was a light which burned all the night, and lighted the gloom of a very dark room.|
+M was a mill which stood on a hill, and turned round and round with a loud hummy sound.|
+N was a net which was thrown in the sea to catch fish for dinner for you and for me.|
+O was an orange so yellow and round: when it fell off the tree, it fell down to the ground.|
+P was a pig, who was not very big; but his tail was too curly, and that made him surly.|
+Q was a quail with a very short tail; and he fed upon corn in the evening and morn.|
+R was a rabbit, who had a bad habit of eating the flowers in gardens and bowers.|
+S was the sugar-tongs, nippity-nee, to take up the sugar to put in our tea.|
+T was a tortoise, all yellow and black: he walked slowly away, and he never came back.|
+U was an urn all polished and bright, and full of hot water at noon and at night.|
+V was a villa which stood on a hill, by the side of a river, and close to a mill.|
+W was a whale with a very long tail, whose movements were frantic across the Atlantic.|
+X was King Xerxes, who, more than all Turks, is renowned for his fashion of fury and passion.|
+Y was a yew, which flourished and grew by a quiet abode near the side of a road.|
+Z was some zinc, so shiny and bright, which caused you to wink In the sun's merry light.");
+
+     $alpha3 = explode("|", "Abigail addressed an absolutely abstemious asp, who resided in a barrel, and only lived on soda water and pickled cucumbers.|
+Brant bantered with a bountiful beetle, who always carried a green umbrella when it didn't rain, and left it at home when it did.|
+Casey called to a comfortable confidential cow, who sat in her red Morocco arm chair and toasted her own bread at the parlour fire.|
+Demetrius dazzled a dolomphious duck, who caught spotted frogs for her dinner with a runcible spoon.|
+Elena espied an enthusiastic elephant, who ferried himself across the water with the kitchen poker and a new pair of ear-rings.|
+Fritz found a fizzgiggious fish, who always walked about upon stilts, because he had no legs.|
+Greta gossiped about a good-natured grey gull, who carried the old owl, and his crimson carpet-bag, across the river, because he could not swim.|
+Heath helped a hasty higgeldipiggledy hen, who went to market in a blue bonnet and shawl, and bought a fish for her supper.|
+Iris invited an inventive innovator, who caught a remarkable rabbit in a stupendous silver spoon.|
+Jaime joked with a judicious jubilant jay, who did up her back hair every morning with a wreath of roses, three feathers, and a gold pin.|
+Keisha kissed a kicking kangaroo, who wore a pale pink muslin dress with blue spots.|
+Leonel laughed with a lively learned lobster, who mended his own clothes with a needle and thread.|
+Miranda mesmerised a melodious meritorious mouse, who played a merry minuet on the piano-forte.|
+Noah nodded to a nutritious newt, who purchased a round plum-pudding for his grand-daughter.
+Olga observed an obsequious ornamental ostrich, who wore boots to keep his feet quite dry.|
+Preston passed a perpendicular purple polly, who read the newspaper and ate parsnip pie with his spectacles.|
+Quinne questioned a querulous quail, who sipped a pint of tabasco on the top of a tin tea-kettle.
+Ramiro recognized a rural runcible raven, who wore a white wig and flew away with the carpet broom.|
+Sonja saw a scroobious snake, who always wore a hat on his head, for fear he should bite anybody.|
+Ty talked to a tumultuous tom-tommy tortoise, who beat a drum all day long in the middle of the wilderness.|
+Ursula understood an umbrageous umbrella-maker, whose face nobody ever saw, because it was always covered by his umbrella.|
+Vito voted for a visibly vicious vulture, who wrote some verses to a veal-cutlet in a volume bound in vellum.|
+Wilda wondered about a worrying whizzing wasp, who stood on a table, and played sweetly on a flute with a morning cap.|
+Xavier x-rayed the excellent double-extra XX imbibing King Xerxes, who lived a long while ago.|
+Yvette yodeled to a yonghy-bonghy-bo, whose head was ever so much bigger than his body, and whose hat was rather small.|
+Zachariah zeroed in on a zigzag zealous zebra, who carried five monkeys on his back all the way to Jellibolee.");
+
+    $alpha4 = explode("|", "A was an area arch where washerwomen sat; they made a lot of lovely starch to starch Adolfo's cravat.|
+B was a bottle blue, which was not very small; Beatriz filled it full of beer, and then she drank it all.|
+C was Carmen's gray cat, who caught a squeaky mouse; she pulled him by his twirly tail all about the house.|
+D was Dena's white duck, who had a curly tail; one day it ate a great fat frog, besides a leetle snail.|
+E was a little egg, upon the breakfast table; Errol came in and ate it up as fast as he was able.|
+F was a little fish. Cook in the river took it. Freida said, 'Cook! Cook! bring a dish! And, Cook! be quick and cook it!'|
+G was Grover's new gum; he put it in a box; and then he went and bought a bun, and walked about the docks.|
+H was Hazel's new hat; she wore it on her head; outside it was completely black, but inside it was red.|
+I was an inkstand new, Isaiah likes to use it; he keeps it in his pocket now, for fear that he should lose it.|
+J was some apple jam, of which Jasmine ate part; but all the rest she took away and stuffed into a tart.|
+K was a great new kite; Kevin saw it fly above a thousand chimney pots, and all about the sky.|
+L was a fine new lamp; but when the wick was lit, Leona said, 'This light ain't good! I cannot read a bit!'|
+M was a dish of mince; it looked so good to eat! Maxwell quickly ate it up, and said, 'This is a treat!'|
+N was a nut that grew high up upon a tree; Nola, who could not reach it, said, 'That's much too high for me!'|
+O was an owl who flew all in the dark away; Otto said, 'What an owl you are! Why don't you fly by day?'|
+P was a little pig, went out to take a walk; Patricia said, 'If Piggy dead, he'd all turn into pork!'|
+Q was a quince that hung upon a garden tree; Quentin brought it with him home, and ate it with his tea.|
+R was a railway rug extremely large and warm; Regina wrapped it round her head, in a most dreadful storm.|
+S was Scotty's new stick, Scotty's new thumping stick, to thump extremely dirty carpets, because it was so thick.|
+T was a tumbler full of punch all hot and good; Tasha drank it up, when in the middle of a wood.|
+U was a silver urn, full of hot scalding water; Ulysses said, 'If that urn were mine, I'd give it to my daughter!'|
+V was a villain; once he stole a piece of beef. Valerie said, 'Oh, dreadful man! That villain is a thief!'|
+W was a watch of gold: it told the time of day, so that Wesley knew when to come, and when to go away.|
+X was King Xerxes, whom Xandra much wished to know; but this he could not do, because Xerxes died long ago.|
+Y was a youth, who kicked and screamed and cried like mad; Yong said, 'Your conduct is abominably bad!'|
+Z was a zebra striped and streaked with lines of black; Zelma said once, she thought she'd like a ride upon his back.");
+
+    $alpha5 = explode("|", "Abel tumbled down, and hurt his arm, against a bit of wood.|
+Bianca said. 'My boy, oh, do not cry; it cannot do you good!'|
+Carson said, 'A cup of coffee hot can't do you any harm.'|
+Delores said, 'A doctor should be fetched, and he would cure the arm.'|
+Eli said, 'An egg beat up with milk would quickly make him well.'|
+Florence said, 'A fish, if broiled, might cure, if only by the smell.'|
+Gary said, 'green gooseberry fool, the best of cures I hold.'|
+Heather said, 'His hat should be kept on, to keep him from the cold.'|
+Isidro said, 'Some ice upon his head will make him better soon.'|
+Janelle said, 'Some jam, if spread on bread, or given in a spoon!'|
+Kip said, 'A kangaroo is here,—this picture let him see.'|
+Latisha said, 'A lamp pray keep alight, to make some barley tea.'|
+Marlin said, 'A mulberry or two might give him satisfaction.'|
+Noelle said, 'Some nuts, if rolled about, might be a slight attraction.'|
+Omar said, 'An owl might make him laugh, if only it would wink.'|
+Petra said, 'Some poetry might be read aloud, to make him think.'|
+Quentin said, 'A quince I recommend,—a quince, or else a quail.'|
+Renee said, 'Some rats might make him move, if fastened by their tail.'|
+Stefan said, 'A song should now be sung, in hopes to make him laugh!'|
+Tessa said, 'A turnip might avail, if sliced or cut in half!'|
+Umberto said, 'An urn, with water hot, place underneath his chin!'|
+Violet said, 'I'll stand upon a chair, and play a violin!'|
+Willis said, 'Some whisky-whizzgigs fetch, some marbles and a ball!'|
+Xanthe said, 'Some double XX ale would be the best of all!'|
+Yaqub said, 'Some yeast mixed up with salt would make a perfect plaster!'|
+Zahrah said, 'Here is a box of zinc! Get in, my little master!'");
+
+    $alpha6 = explode("|", "A was once an apple-pie, pidy, widy, tidy, pidy, nice insidy, apple-pie!|
+B was once a little bear, beary, wary, hairy, beary, taky cary, little bear!|
+C was once a little cake, caky, baky, maky, caky, taky caky, little cake!|
+D was once a little doll, dolly, molly, polly, nolly, nursy dolly, little doll!|
+E was once a little eel, eely, weely, peely, eely, twirly, tweely, little eel!|
+F was once a little fish, fishy, wishy, squishy, fishy, in a dishy, little fish!|
+G was once a little goose, goosey, moosy, boosey, goosey, waddly-woosy, little goose!|
+H was once a little hen, henny, chenny, tenny, henny. eggsy-any, little hen?|
+I was once a bottle of ink inky, dinky, thinky, inky, blacky minky, bottle of ink!|
+J was once a jar of jam, jammy, mammy, clammy, jammy, sweety, swammy, jar of jam!|
+K was once a little kite, kity, whity, flighty, kity, out of sighty, little kite!|
+L was once a little lark, larky, marky, harky, larky, in the parky, little lark!|
+M was once a little mouse, mousy, bousy, sousy, mousy, in the housy, little mouse!|
+N was once a little needle, needly, tweedly, threedly, needly, wisky, wheedly, little needle!|
+O was once a little owl, owly, prowly, howly, owly, browny fowly, little owl!|
+P was once a little pump, pumpy, slumpy, flumpy, pumpy, dumpy, thumpy, little pump!|
+Q was once a little quail, quaily, faily, daily, quaily, stumpy-taily, little quail!|
+R was once a little rose, rosy, posy, nosy, rosy, blows-y, grows-y, little rose!|
+S was once a little shrimp, shrimpy, nimpy, flimpy, shrimpy. jumpy, jimpy, little shrimp!|
+T was once a little thrush, thrushy, hushy, bushy, thrushy, flitty, flushy, little thrush!|
+U was once a little urn, urny, burny, turny, urny, bubbly, burny, little urn!|
+V was once a little vine, viny, winy, twiny, viny, twisty-twiny, little vine!|
+W was once a whale, whaly, scaly, shaly, whaly, tumbly-taily, mighty whale!|
+X was once a great King Xerxes, xerxy, perxy, turxy, xerxy, linxy, lurxy, great King Xerxes!|
+Y was once a little yew, yewdy, fewdy, crudy, yewdy, growdy, grewdy, little yew!|
+Z was once a piece of zinc, tinky, winky, blinky, tinky, tinkly minky, piece of zinc!");
+
+
+    //debugging('count serial pseudoids ' . $countserialpseudoids, DEBUG_DEVELOPER);
+     do {
+    $maxcount = 1;
+    
+$alpha1count = count($alpha1);
+         // 1 phrase: alpha1 26 possibilities
+     $id = $alpha1[fmod($countserialpseudoids,count($alpha1))];
+    //debugging('fmod of counter  ' . $countserialpseudoids . ' , mod by alpha1 ' . count($alpha1) . ' = ' . fmod($countserialpseudoids,count($alpha1)), DEBUG_DEVELOPER);
+     $maxcount = $maxcount * count($alpha1);
+     
+     if ($len > $maxcount) {
+    // 2 phrases: alpha2  + alpha1 26*26 = 676
+     $id =  $alpha1[fmod(floor($countserialpseudoids/$maxcount), count($alpha2))] . " . " . $id;
+    //debugging('floor of fmod of counter/maxcount ' . floor($countserialpseudoids/$maxcount) . ' ,  mod alpha2' . count($alpha2) . ' = ' . fmod($countserialpseudoids,count($alpha1)), DEBUG_DEVELOPER);
+              $maxcount =  $maxcount * count($alpha2);
+     } else {
+         //debugging('stopped at alpha1 with ' . $id, DEBUG_DEVELOPER);
+     }
+
+     if ($len > $maxcount) {
+    // 3 phrases: alpha 3 + alpha2 + alpha1  26*676 = 17,576
+     $id = $alpha3[fmod(floor($countserialpseudoids/$maxcount), count($alpha3))] . " " . $id;
+             $maxcount =  $maxcount * count($alpha3);
+     } else {
+         //debugging('stopped at alpha2 with ' . $id, DEBUG_DEVELOPER);
+     }
+
+     if ($len > $maxcount) {
+    // 4 phrases: alpha4 + alpha 3 + alpha2 + alpha1 26*17576 = 456,976
+      $id = $alpha4[fmod(floor($countserialpseudoids/$maxcount), count($alpha4))] . " " . $id;
+             $maxcount =  $maxcount * count($alpha4);
+     } else {
+         //debugging('stopped at alpha3 with ' . $id, DEBUG_DEVELOPER);
+     }
+    
+     
+     if ($len > $maxcount) {
+    // 5 phrases: alpha5 + alpha4 + alpha 3 + alpha2 + alpha1  26*456976 = 11,881,376
+              $id = $alpha5[fmod(floor($countserialpseudoids/$maxcount), count($alpha5))] . " " .  $id;
+              $maxcount =  $maxcount * count($alpha5);
+     }
+     
+     if ($len > $maxcount) {
+    // 6 phrases: alpha6 + alpha5 + alpha4 + alpha 3 + alpha2 + alpha1 26*11881376 = 308,915,776
+        $id = $alpha6[fmod(floor($countserialpseudoids/$maxcount), count($alpha6))]  . " " . $id;
+              $maxcount =  $maxcount * count($alpha6);
+    }
+          
+ 
+    // add modulus (as string) to end of string if there is anything left
+  if ($len > $maxcount) {
+      $id = $id . " " . strval($len-$maxcount);
+  } // if
+         //debugging('testing ' . $id . ' for uniqueness', DEBUG_DEVELOPER);
+         //debugging('count serial pseudoids ' . $countserialpseudoids, DEBUG_DEVELOPER);
+         //debugging('maxcount ' . $maxcount, DEBUG_DEVELOPER);
+         //debugging('len ' . $len, DEBUG_DEVELOPER);
+     $countserialpseudoids++;
+     } while (array_search($id,  $usedserialpseudoids) !== false);
+    //debugging('passed ' . $id . ' for uniqueness', DEBUG_DEVELOPER);
+     $usedserialpseudoids[] = $id;
+     //print $countserialpseudoids;
+    return $id;
+}
+
 
 function get_excluded_text_columns() {
     return array(
